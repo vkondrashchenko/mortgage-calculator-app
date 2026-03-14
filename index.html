@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mortgage Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-primary: #ffffff; --bg-secondary: #f5f5f4; --bg-info: #e6f1fb; --bg-success: #eaf3de;
+    --text-primary: #1a1a18; --text-secondary: #6b6b67; --text-info: #185FA5; --text-success: #3B6D11;
+    --border-t: rgba(0,0,0,0.12); --border-s: rgba(0,0,0,0.22); --border-info: #b5d4f4; --border-success: #c0dd97;
+    --radius-md: 8px; --radius-lg: 12px; --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-primary: #1c1c1a; --bg-secondary: #282825; --bg-info: #042c53; --bg-success: #173404;
+      --text-primary: #f0efe8; --text-secondary: #9a9a94; --text-info: #85b7eb; --text-success: #97c459;
+      --border-t: rgba(255,255,255,0.1); --border-s: rgba(255,255,255,0.2); --border-info: #0c447c; --border-success: #27500a;
+    }
+  }
+  body { font-family: var(--font); background: var(--bg-secondary); color: var(--text-primary); min-height: 100vh; }
+  header { background: var(--bg-primary); border-bottom: 0.5px solid var(--border-t); padding: 16px 32px; display: flex; align-items: baseline; gap: 12px; }
+  header h1 { font-size: 18px; font-weight: 500; }
+  header span { font-size: 13px; color: var(--text-secondary); }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+  .card { background: var(--bg-primary); border-radius: var(--radius-lg); border: 0.5px solid var(--border-t); padding: 24px; }
+  .app-tabs { display: flex; border-bottom: 0.5px solid var(--border-t); margin-bottom: 1.5rem; }
+  .app-tab { padding: 8px 20px; font-size: 13px; font-family: var(--font); border: none; background: transparent; color: var(--text-secondary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -0.5px; }
+  .app-tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); font-weight: 500; }
+  .panel { display: none; } .panel.active { display: block; }
+  .top-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 1.5rem; }
+  .field label { font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+  .field input[type=number] { width: 100%; padding: 6px 10px; font-size: 14px; border: 0.5px solid var(--border-s); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); font-family: var(--font); }
+  .field input[type=number]:focus { outline: none; border-color: #378ADD; }
+  .scenario-tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; }
+  .stab { padding: 7px 18px; font-size: 13px; font-family: var(--font); border: 0.5px solid var(--border-s); border-radius: var(--radius-md); background: transparent; color: var(--text-secondary); cursor: pointer; }
+  .stab.active { background: var(--bg-info); color: var(--text-info); border-color: var(--border-info); }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .mcard { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px; }
+  .mcard .mlabel { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+  .mcard .mval { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+  .mcard .msub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .cost-breakdown { background: var(--bg-secondary); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 1rem; }
+  .cb-title { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .cb-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .cb-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 0.5px solid var(--border-t); }
+  .cb-row:last-child .cb-label { font-weight: 500; color: var(--text-primary); }
+  .cb-bar-wrap { flex: 1; height: 6px; background: var(--border-t); border-radius: 3px; overflow: hidden; }
+  .cb-bar { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .cb-label { font-size: 12px; color: var(--text-secondary); min-width: 110px; }
+  .cb-amt { font-size: 13px; font-weight: 500; color: var(--text-primary); min-width: 88px; text-align: right; }
+  .sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+  @media (max-width: 540px) { .sliders { grid-template-columns: 1fr; } }
+  .srow label { font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between; margin-bottom: 6px; }
+  .srow label span { font-weight: 500; color: var(--text-primary); }
+  .srow input[type=range] { width: 100%; accent-color: #378ADD; }
+  .chart-wrap { position: relative; height: 220px; margin-bottom: 1rem; }
+  .buydown-banner { background: var(--bg-success); border: 0.5px solid var(--border-success); border-radius: var(--radius-md); padding: 10px 14px; font-size: 13px; color: var(--text-success); margin-bottom: 1rem; display: none; }
+  .buydown-banner.show { display: block; }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 8px; font-size: 12px; color: var(--text-secondary); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend b { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .divider { height: 0.5px; background: var(--border-t); margin: 1.25rem 0; }
+  .buydown-rates { display: flex; gap: 10px; margin-bottom: 1rem; }
+  .brate { flex: 1; background: var(--bg-secondary); border-radius: var(--radius-md); padding: 10px; text-align: center; }
+  .brate .yr { font-size: 11px; color: var(--text-secondary); }
+  .brate .rt { font-size: 18px; font-weight: 500; color: var(--text-primary); }
+  .brate .pymt { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .brate.highlight { background: var(--bg-info); }
+  .brate.highlight .yr, .brate.highlight .pymt, .brate.highlight .rt { color: var(--text-info); }
+  .tbl-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tbl-controls label { font-size: 12px; color: var(--text-secondary); }
+  .tbl-controls select { font-size: 13px; padding: 5px 8px; font-family: var(--font); border: 0.5px solid var(--border-s); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); }
+  .tbl-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 1rem; }
+  .tbl-wrap { overflow-x: auto; border: 0.5px solid var(--border-t); border-radius: var(--radius-md); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { background: var(--bg-secondary); padding: 8px 10px; text-align: right; font-size: 11px; font-weight: 500; color: var(--text-secondary); white-space: nowrap; border-bottom: 0.5px solid var(--border-t); }
+  thead th:first-child { text-align: left; }
+  tbody tr:hover { background: var(--bg-secondary); }
+  tbody td { padding: 6px 10px; text-align: right; color: var(--text-primary); border-bottom: 0.5px solid var(--border-t); }
+  tbody td:first-child { text-align: left; color: var(--text-secondary); }
+  tbody tr:last-child td { border-bottom: none; }
+  .yr-row td { background: var(--bg-secondary); font-weight: 500; }
+  .rate-badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--bg-info); color: var(--text-info); margin-left: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mortgage Calculator</h1>
+  <span>15-year fixed &amp; 2-1 buydown</span>
+</header>
+<div class="container">
+  <div class="card">
+    <div class="app-tabs">
+      <button class="app-tab active" onclick="switchPanel('calc')">Calculator</button>
+      <button class="app-tab" onclick="switchPanel('table')">Monthly breakdown</button>
+    </div>
+
+    <div id="panel-calc" class="panel active">
+      <div class="top-inputs">
+        <div class="field"><label>Home price ($)</label><input type="number" id="price" value="450000" step="5000"></div>
+        <div class="field"><label>Down payment ($)</label><input type="number" id="down" value="90000" step="5000"></div>
+        <div class="field"><label>Interest rate (%)</label><input type="number" id="rate" value="6.75" step="0.125" min="1" max="15"></div>
+        <div class="field"><label>Start year</label><input type="number" id="startyear" value="2025" step="1" min="2020" max="2040"></div>
+      </div>
+      <div class="scenario-tabs">
+        <button class="stab active" onclick="setScenario('fixed')">15-year fixed</button>
+        <button class="stab" onclick="setScenario('buydown')">2-1 buydown</button>
+      </div>
+      <div id="buydown-banner" class="buydown-banner">2-1 buydown: seller or builder subsidizes reduced payments in years 1&ndash;2. You pay the full rate from year 3 onward.</div>
+      <div id="buydown-rates-row" class="buydown-rates" style="display:none"></div>
+      <div class="metrics" id="metrics"></div>
+      <div class="cost-breakdown" id="cost-breakdown"></div>
+      <div class="sliders">
+        <div class="srow">
+          <label>Discount points <span id="pts-val">0</span></label>
+          <input type="range" id="pts" min="0" max="8" step="0.25" value="0">
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px" id="pts-info"></div>
+        </div>
+        <div class="srow">
+          <label>Extra principal/mo <span id="xtra-val">$0</span></label>
+          <input type="range" id="xtra" min="0" max="7000" step="50" value="0">
+          <div style="font-size:11px;color:var(--text-secondary);margin-top:4px" id="xtra-info"></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <p class="section-title">Balance over time</p>
+      <div class="legend" id="legend"></div>
+      <div class="chart-wrap"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div id="panel-table" class="panel">
+      <div class="tbl-controls">
+        <label>View:</label>
+        <select id="tbl-view">
+          <option value="all">Every month</option>
+          <option value="year">Year-end summary</option>
+        </select>
+        <label style="margin-left:8px">Highlight:</label>
+        <select id="tbl-highlight">
+          <option value="none">None</option>
+          <option value="interest">High interest</option>
+          <option value="principal">High principal</option>
+        </select>
+      </div>
+      <div class="tbl-summary" id="tbl-summary"></div>
+      <div class="tbl-wrap"><table id="amort-table"><thead></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CFG = {ptRate:0.25,ptCost:1.0,bdYr1:2.0,bdYr2:1.0,bdMonths:24,term:15,periods:12};
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let currentScenario = 'fixed', myChart = null;
+
+function switchPanel(p) {
+  document.querySelectorAll('.panel').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.app-tab').forEach(el => el.classList.remove('active'));
+  document.getElementById('panel-' + p).classList.add('active');
+  document.querySelectorAll('.app-tab')[p === 'calc' ? 0 : 1].classList.add('active');
+  if (p === 'table') renderTable();
+}
+
+function setScenario(t) {
+  currentScenario = t;
+  document.querySelectorAll('.stab').forEach((b,i) => b.classList.toggle('active', (i===0&&t==='fixed')||(i===1&&t==='buydown')));
+  render();
+}
+
+function fmt(n) { return '$' + Math.round(n).toLocaleString(); }
+function fmtK(n) { return '$' + (Math.round(n/100)/10).toLocaleString() + 'k'; }
+function fmtPct(n) { return n.toFixed(3) + '%'; }
+
+function calcAmort(principal, annualRate, extraMonthly, totalMonths) {
+  const r = annualRate / 100 / CFG.periods;
+  const pmt = r === 0 ? principal/totalMonths : principal*r*Math.pow(1+r,totalMonths)/(Math.pow(1+r,totalMonths)-1);
+  let bal = principal, totalInt = 0, rows = [], balances = [bal], payoffMonth = totalMonths;
+  for (let m = 1; m <= totalMonths; m++) {
+    const interest = bal * r;
+    const principalPaid = Math.min(pmt - interest + extraMonthly, bal);
+    totalInt += interest;
+    bal = Math.max(0, bal - principalPaid);
+    rows.push({m, interest, principalPaid, extraMonthly, totalPaid: interest + principalPaid, balance: bal, cumInterest: totalInt});
+    balances.push(bal);
+    if (bal <= 0 && payoffMonth === totalMonths) { payoffMonth = m; break; }
+  }
+  return {pmt, totalInterest: totalInt, balances, rows, payoffMonth};
+}
+
+function calcBuydown(principal, annualRate, extraMonthly, totalMonths) {
+  const r1 = (annualRate - CFG.bdYr1) / 100 / CFG.periods;
+  const r2 = (annualRate - CFG.bdYr2) / 100 / CFG.periods;
+  const r3 = annualRate / 100 / CFG.periods;
+  const pmt = (r, mo) => principal*r*Math.pow(1+r,mo)/(Math.pow(1+r,mo)-1);
+  const p1=pmt(r1,totalMonths), p2=pmt(r2,totalMonths), p3=pmt(r3,totalMonths);
+  const yr1end = Math.round(CFG.bdMonths/2), yr2end = CFG.bdMonths;
+  let bal = principal, totalInt = 0, rows = [], balances = [bal], payoffMonth = totalMonths;
+  for (let m = 1; m <= totalMonths; m++) {
+    const r = m <= yr1end ? r1 : m <= yr2end ? r2 : r3;
+    const sched = m <= yr1end ? p1 : m <= yr2end ? p2 : p3;
+    const interest = bal * r;
+    const principalPaid = Math.min(sched - interest + extraMonthly, bal);
+    totalInt += interest;
+    bal = Math.max(0, bal - principalPaid);
+    rows.push({m, interest, principalPaid, extraMonthly, totalPaid: interest+principalPaid, balance: bal, cumInterest: totalInt, rateTier: m<=yr1end?1:m<=yr2end?2:3});
+    balances.push(bal);
+    if (bal <= 0 && payoffMonth === totalMonths) { payoffMonth = m; break; }
+  }
+  const subsidy = Math.max(0, (p3-p1)*yr1end + (p3-p2)*(yr2end-yr1end));
+  return {pmt:p3, pmt1:p1, pmt2:p2, pmt3:p3, totalInterest:totalInt, balances, rows, payoffMonth, subsidy};
+}
+
+function barColor(frac) { return frac > 0.6 ? '#185FA5' : frac > 0.3 ? '#0F6E56' : '#BA7517'; }
+
+function renderBreakdown(rows, total) {
+  let html = '<div class="cb-title">Total mortgage cost breakdown</div>';
+  rows.forEach(({label, amt}) => {
+    if (amt <= 0) return;
+    const frac = amt/total, pct = (frac*100).toFixed(1) + '%';
+    html += `<div class="cb-row"><div class="cb-label">${label}</div><div class="cb-bar-wrap"><div class="cb-bar" style="width:${(frac*100).toFixed(1)}%;background:${barColor(frac)}"></div></div><div class="cb-amt">${fmt(amt)} <span style="font-size:11px;color:var(--text-secondary)">${pct}</span></div></div>`;
+  });
+  html += `<div class="cb-row"><div class="cb-label">Total cost</div><div class="cb-bar-wrap"></div><div class="cb-amt" style="color:var(--text-info)">${fmt(total)}</div></div>`;
+  document.getElementById('cost-breakdown').innerHTML = html;
+}
+
+function render() {
+  const price = +document.getElementById('price').value || 450000;
+  const down = +document.getElementById('down').value || 90000;
+  const baseRate = +document.getElementById('rate').value || 6.75;
+  const pts = +document.getElementById('pts').value;
+  const xtra = +document.getElementById('xtra').value;
+  const months = CFG.term * 12;
+  const effectiveRate = Math.max(0.5, baseRate - pts * CFG.ptRate);
+  const principal = price - down;
+  const pointsCost = principal * pts * CFG.ptCost / 100;
+  const startYr = +document.getElementById('startyear').value || 2025;
+
+  document.getElementById('pts-val').textContent = pts + 'pt' + (pts !== 1 ? 's' : '');
+  document.getElementById('xtra-val').textContent = fmt(xtra) + '/mo';
+  document.getElementById('pts-info').textContent = pts > 0 ? `Cost: ${fmt(pointsCost)} \u2192 rate: ${fmtPct(effectiveRate)}` : 'No points \u2014 upfront cost $0';
+  document.getElementById('xtra-info').textContent = xtra > 0 ? 'Reduces balance faster' : 'No extra payment';
+  document.getElementById('buydown-banner').classList.toggle('show', currentScenario === 'buydown');
+  const brow = document.getElementById('buydown-rates-row');
+  brow.style.display = currentScenario === 'buydown' ? 'flex' : 'none';
+
+  let labels = [];
+  for (let m = 0; m <= months; m++) labels.push(m % 12 === 0 ? String(startYr + m/12) : '');
+
+  let datasets = [], metricsHTML = '', legendHTML = '';
+
+  if (currentScenario === 'fixed') {
+    const d = calcAmort(principal, effectiveRate, xtra, months);
+    const base = calcAmort(principal, effectiveRate, 0, months);
+    const totalCost = d.totalInterest + pointsCost;
+    const saved = xtra > 0 ? base.totalInterest - d.totalInterest : 0;
+    metricsHTML = `
+      <div class="mcard"><div class="mlabel">Loan amount</div><div class="mval">${fmt(principal)}</div></div>
+      <div class="mcard"><div class="mlabel">Monthly payment</div><div class="mval">${fmt(d.pmt)}</div><div class="msub">P&amp;I only</div></div>
+      <div class="mcard"><div class="mlabel">Total interest</div><div class="mval">${fmt(d.totalInterest)}</div></div>
+      <div class="mcard"><div class="mlabel">Rate (after pts)</div><div class="mval">${fmtPct(effectiveRate)}</div></div>
+      <div class="mcard"><div class="mlabel">Payoff</div><div class="mval">${(d.payoffMonth/12).toFixed(1)} yrs</div></div>
+      ${saved > 0 ? `<div class="mcard"><div class="mlabel">Interest saved</div><div class="mval">${fmt(saved)}</div><div class="msub">from extra pymt</div></div>` : ''}
+    `;
+    renderBreakdown([{label:'Interest paid',amt:d.totalInterest},{label:'Discount points',amt:pointsCost}], totalCost);
+    datasets = [{label:'15yr fixed',data:d.balances,borderColor:'#185FA5',backgroundColor:'rgba(24,95,165,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2}];
+    if (xtra > 0) datasets.push({label:'No extra payment',data:base.balances,borderColor:'#888780',backgroundColor:'transparent',fill:false,tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[5,4]});
+    legendHTML = `<span><b style="background:#185FA5"></b>15-yr fixed (${fmtPct(effectiveRate)})</span>`;
+    if (xtra > 0) legendHTML += `<span><b style="background:#888780"></b>No extra payment</span>`;
+  } else {
+    const bd = calcBuydown(principal, effectiveRate, xtra, months);
+    const fixedBase = calcAmort(principal, effectiveRate, 0, months);
+    const totalCost = bd.totalInterest + pointsCost + bd.subsidy;
+    brow.innerHTML = `
+      <div class="brate highlight"><div class="yr">Year 1</div><div class="rt">${(effectiveRate-CFG.bdYr1).toFixed(2)}%</div><div class="pymt">${fmt(bd.pmt1)}/mo</div></div>
+      <div class="brate highlight"><div class="yr">Year 2</div><div class="rt">${(effectiveRate-CFG.bdYr2).toFixed(2)}%</div><div class="pymt">${fmt(bd.pmt2)}/mo</div></div>
+      <div class="brate"><div class="yr">Year 3+</div><div class="rt">${effectiveRate.toFixed(2)}%</div><div class="pymt">${fmt(bd.pmt3)}/mo</div></div>
+    `;
+    metricsHTML = `
+      <div class="mcard"><div class="mlabel">Loan amount</div><div class="mval">${fmt(principal)}</div></div>
+      <div class="mcard"><div class="mlabel">Yr 3+ payment</div><div class="mval">${fmt(bd.pmt3)}</div><div class="msub">P&amp;I at full rate</div></div>
+      <div class="mcard"><div class="mlabel">Total interest</div><div class="mval">${fmt(bd.totalInterest)}</div></div>
+      <div class="mcard"><div class="mlabel">Subsidy value</div><div class="mval">${fmt(bd.subsidy)}</div><div class="msub">yrs 1&ndash;2 savings</div></div>
+      <div class="mcard"><div class="mlabel">Rate (after pts)</div><div class="mval">${fmtPct(effectiveRate)}</div></div>
+      ${xtra > 0 ? `<div class="mcard"><div class="mlabel">Interest saved</div><div class="mval">${fmt(fixedBase.totalInterest-bd.totalInterest)}</div><div class="msub">from extra pymt</div></div>` : ''}
+    `;
+    renderBreakdown([{label:'Interest paid',amt:bd.totalInterest},{label:'Buydown subsidy',amt:bd.subsidy},{label:'Discount points',amt:pointsCost}], totalCost);
+    datasets = [
+      {label:'2-1 buydown',data:bd.balances,borderColor:'#0F6E56',backgroundColor:'rgba(15,110,86,0.08)',fill:true,tension:0.3,pointRadius:0,borderWidth:2},
+      {label:'15yr fixed (ref)',data:fixedBase.balances,borderColor:'#888780',backgroundColor:'transparent',fill:false,tension:0.3,pointRadius:0,borderWidth:1.5,borderDash:[5,4]}
+    ];
+    legendHTML = `<span><b style="background:#0F6E56"></b>2-1 buydown</span><span><b style="background:#888780"></b>15-yr fixed (reference)</span>`;
+  }
+
+  document.getElementById('metrics').innerHTML = metricsHTML;
+  document.getElementById('legend').innerHTML = legendHTML;
+
+  const trimLabels = labels.map((l,i) => i % 12 === 0 ? l : '');
+  if (myChart) myChart.destroy();
+  myChart = new Chart(document.getElementById('chart'), {
+    type: 'line', data: {labels: trimLabels, datasets},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: {mode:'index', intersect:false},
+      plugins: {legend:{display:false}, tooltip:{callbacks:{
+        title: (items) => { const idx=items[0].dataIndex, yr=startYr+Math.floor(idx/12), mo=idx%12; return mo===0?`Jan ${yr}`:`Month ${idx} (${yr})`; },
+        label: (item) => ` ${item.dataset.label}: ${fmt(item.raw)}`
+      }}},
+      scales: {
+        x: {grid:{color:'rgba(128,128,128,0.1)'}, ticks:{color:'#888780',font:{size:11},maxRotation:0,autoSkip:false,callback:function(val,idx){return trimLabels[idx]||null;}}},
+        y: {grid:{color:'rgba(128,128,128,0.1)'}, ticks:{color:'#888780',font:{size:11},callback:v=>fmtK(v)}}
+      }
+    }
+  });
+}
+
+function renderTable() {
+  const price = +document.getElementById('price').value || 450000;
+  const down = +document.getElementById('down').value || 90000;
+  const baseRate = +document.getElementById('rate').value || 6.75;
+  const pts = +document.getElementById('pts').value;
+  const xtra = +document.getElementById('xtra').value;
+  const months = CFG.term * 12;
+  const effectiveRate = Math.max(0.5, baseRate - pts * CFG.ptRate);
+  const principal = price - down;
+  const startYr = +document.getElementById('startyear').value || 2025;
+  const viewMode = document.getElementById('tbl-view').value;
+  const highlightMode = document.getElementById('tbl-highlight').value;
+
+  const rows = currentScenario === 'fixed'
+    ? calcAmort(principal, effectiveRate, xtra, months).rows
+    : calcBuydown(principal, effectiveRate, xtra, months).rows;
+
+  const totalInt = rows[rows.length-1].cumInterest;
+  const totalPaid = rows.reduce((s,r) => s + r.totalPaid, 0);
+  const totalPrincipal = rows.reduce((s,r) => s + r.principalPaid, 0);
+  document.getElementById('tbl-summary').innerHTML = `
+    <div class="mcard"><div class="mlabel">Total paid</div><div class="mval">${fmt(totalPaid)}</div></div>
+    <div class="mcard"><div class="mlabel">Total interest</div><div class="mval">${fmt(totalInt)}</div></div>
+    <div class="mcard"><div class="mlabel">Total principal</div><div class="mval">${fmt(totalPrincipal)}</div></div>
+    <div class="mcard"><div class="mlabel">Payoff month</div><div class="mval">${rows.length}</div><div class="msub">of ${months}</div></div>
+  `;
+
+  const isBuydown = currentScenario === 'buydown';
+  const thead = `<tr>
+    <th style="text-align:left">Date</th><th>Payment</th><th>Principal</th><th>Interest</th>
+    ${xtra > 0 ? '<th>Extra</th>' : ''}<th>Balance</th><th>Cum. interest</th>
+    ${isBuydown ? '<th>Rate tier</th>' : ''}
+  </tr>`;
+
+  const maxInt = Math.max(...rows.map(r => r.interest));
+  const maxPrin = Math.max(...rows.map(r => r.principalPaid));
+  let tbodyRows = [];
+
+  if (viewMode === 'year') {
+    for (let yr = 0; yr < Math.ceil(rows.length/12); yr++) {
+      const chunk = rows.slice(yr*12, (yr+1)*12);
+      if (!chunk.length) break;
+      const last = chunk[chunk.length-1];
+      tbodyRows.push(`<tr class="yr-row">
+        <td>Year ${yr+1} (${startYr+yr})</td>
+        <td>${fmt(chunk.reduce((s,r)=>s+r.totalPaid,0))}</td>
+        <td>${fmt(chunk.reduce((s,r)=>s+r.principalPaid,0))}</td>
+        <td>${fmt(chunk.reduce((s,r)=>s+r.interest,0))}</td>
+        ${xtra > 0 ? `<td>${fmt(chunk.reduce((s,r)=>s+r.extraMonthly,0))}</td>` : ''}
+        <td>${fmt(last.balance)}</td><td>${fmt(last.cumInterest)}</td>
+        ${isBuydown ? '<td>&mdash;</td>' : ''}
+      </tr>`);
+    }
+  } else {
+    rows.forEach(r => {
+      const yr = startYr + Math.floor((r.m-1)/12);
+      const mo = MONTHS_SHORT[(r.m-1)%12];
+      let bg = '';
+      if (highlightMode === 'interest' && r.interest > maxInt * 0.8) bg = 'background:rgba(24,95,165,0.07)';
+      if (highlightMode === 'principal' && r.principalPaid > maxPrin * 0.8) bg = 'background:rgba(15,110,86,0.07)';
+      const tierBadge = r.rateTier && r.rateTier < 3 ? `<span class="rate-badge">yr${r.rateTier}</span>` : '';
+      tbodyRows.push(`<tr style="${bg}">
+        <td>${mo} ${yr}</td><td>${fmt(r.totalPaid)}</td><td>${fmt(r.principalPaid)}</td><td>${fmt(r.interest)}</td>
+        ${xtra > 0 ? `<td>${fmt(r.extraMonthly)}</td>` : ''}
+        <td>${fmt(r.balance)}</td><td>${fmt(r.cumInterest)}</td>
+        ${isBuydown ? `<td>${tierBadge}</td>` : ''}
+      </tr>`);
+    });
+  }
+
+  const tbl = document.getElementById('amort-table');
+  tbl.querySelector('thead').innerHTML = thead;
+  tbl.querySelector('tbody').innerHTML = tbodyRows.join('');
+}
+
+['price','down','rate','startyear'].forEach(id => document.getElementById(id).addEventListener('input', render));
+document.getElementById('pts').addEventListener('input', render);
+document.getElementById('xtra').addEventListener('input', render);
+document.getElementById('tbl-view').addEventListener('change', renderTable);
+document.getElementById('tbl-highlight').addEventListener('change', renderTable);
+render();
+</script>
+</body>
+</html>
